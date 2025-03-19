@@ -1,6 +1,6 @@
-package com.arthur.exception;
+package com.arthur.exception.user;
 
-public class ResourceNotFoundException extends RuntimeException{
+public class ResourceNotFoundException extends Exception4User{
     public ResourceNotFoundException() {
     }
 

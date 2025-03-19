@@ -4,7 +4,6 @@ import com.arthur.exception.*;
 import org.jsoup.HttpStatusException;
 
 import java.io.IOException;
-import java.net.MalformedURLException;
 import java.nio.file.NoSuchFileException;
 
 public class Main {
@@ -14,24 +13,6 @@ public class Main {
     private final static String PATH = "C:\\Users\\79053\\Desktop\\image";
 
     public static void main(String[] args) {
-        try {
-            service.parseImages(URL, PATH);
-        } catch (HttpStatusException e) {
-            int statusCode = e.getStatusCode();
-            String errorMessage = statusCode + " url: " + e.getUrl();
-
-            switch (statusCode) {
-                case 401 -> throw new UnauthorizedException("Пользователь не авторизован. " + errorMessage);
-                case 403 -> throw new ForbiddenException("Доступ к запрашиваемому ресурсу запрещен. " + errorMessage);
-                case 404 -> throw new ResourceNotFoundException("Невозможно найти запрашиваемый ресурс. " + errorMessage);
-                default -> throw new ImageDownloadException("Ошибка HTTP-запроса: " + errorMessage);
-            }
-        } catch (NoSuchFileException e) {
-            throw new ImageDownloadException("Такой директории не существует: " + PATH, e);
-        } catch (IllegalArgumentException e) {
-            throw new RuntimeException("Некорректный аргумент: " + e.getMessage());
-        } catch (IOException e) {
-            throw new ImageDownloadException("Ошибка: " + e.getMessage());
-        }
+        service.parseImages(URL, PATH);
     }
 }

@@ -2,6 +2,14 @@ package com.arthur;
 
 import com.arthur.config.Config;
 import com.arthur.config.ConfigLoader;
+import com.arthur.exception.support.Exception4Support;
+import com.arthur.exception.support.ForbiddenException;
+import com.arthur.exception.support.ImageDownloadException;
+import com.arthur.exception.user.DirectoryException;
+import com.arthur.exception.user.Exception4User;
+import com.arthur.exception.user.ResourceNotFoundException;
+import com.arthur.exception.user.UnauthorizedException;
+import org.jsoup.HttpStatusException;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -11,6 +19,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
 import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 
@@ -21,29 +30,53 @@ public class Service {
     private final String HTML_TAG = config.getHtmlTag();
     private final String ATTRIBUTE = config.getAttribute();
 
-    public void parseImages(String siteUrl, String path) throws IOException {
-        Document doc = Jsoup.connect(siteUrl)
-                .userAgent(USER_AGENT)
-                .referrer(REFERRER)
-                .get();
+    public void parseImages(String siteUrl, String path){
+        try {
+            Document doc = Jsoup.connect(siteUrl)
+                    .userAgent(USER_AGENT)
+                    .referrer(REFERRER)
+                    .get();
 
-        Elements images = doc.select(HTML_TAG);
+            Elements images = doc.select(HTML_TAG);
 
-        for (Element image : images) {
-            String imageUrl = image.attr(ATTRIBUTE);
+            for (Element image : images) {
+                String imageUrl = image.attr(ATTRIBUTE);
 
-            String fileName = imageUrl.substring(imageUrl.lastIndexOf("/") + 1);
-            fileName = removeAdditionalParameters(fileName);
+                String fileName = imageUrl.substring(imageUrl.lastIndexOf("/") + 1);
+                fileName = removeAdditionalParameters(fileName);
 
-            URL url = new URL(imageUrl);
+                URL url = new URL(imageUrl);
 
-            InputStream in = url.openStream();
-                Files.copy(
-                        in,
-                        Paths.get(path, fileName),
-                        StandardCopyOption.REPLACE_EXISTING
-                );
+                try (InputStream in = url.openStream()) {
+                    Files.copy(
+                            in,
+                            Paths.get(path, fileName),
+                            StandardCopyOption.REPLACE_EXISTING
+                    );
+                } catch (NoSuchFileException e) {
+                    throw new DirectoryException("Такой директории не существует: " + path);
+                } catch (IOException e) {
+                    throw new Exception4Support("Ошибка: " + e.getMessage());
+                }
+            }
+        } catch (HttpStatusException e) {
+            handleHttpStatusException(e);
+        } catch (IOException e) {
+            throw new ImageDownloadException("Ошибка: " + e.getMessage());
+        } catch (IllegalArgumentException e) {
+            throw new Exception4User("Неверное значение аргументов. " + e.getMessage());
+        }
+    }
 
+    private void handleHttpStatusException(HttpStatusException e) {
+        int statusCode = e.getStatusCode();
+        String errorMessage = statusCode + " url: " + e.getUrl();
+
+        switch (statusCode) {
+            case 401 -> throw new UnauthorizedException("Пользователь не авторизован. " + errorMessage);
+            case 403 -> throw new ForbiddenException("Доступ к запрашиваемому ресурсу запрещен. " + errorMessage);
+            case 404 -> throw new ResourceNotFoundException("Невозможно найти запрашиваемый ресурс. " + errorMessage);
+            default -> throw new ImageDownloadException("Ошибка. " + errorMessage);
         }
     }
 

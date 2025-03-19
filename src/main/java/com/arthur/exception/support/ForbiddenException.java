@@ -1,6 +1,6 @@
-package com.arthur.exception;
+package com.arthur.exception.support;
 
-public class ForbiddenException extends RuntimeException{
+public class ForbiddenException extends Exception4Support{
     public ForbiddenException() {
     }
 

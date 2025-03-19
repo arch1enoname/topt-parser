@@ -1,6 +1,6 @@
-package com.arthur.exception;
+package com.arthur.exception.support;
 
-public class ImageDownloadException extends RuntimeException{
+public class ImageDownloadException extends Exception4Support {
     public ImageDownloadException() {
     }
 

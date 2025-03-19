@@ -1,6 +1,6 @@
-package com.arthur.exception;
+package com.arthur.exception.user;
 
-public class InvalidUrlException extends RuntimeException{
+public class InvalidUrlException extends Exception4User{
 
     public InvalidUrlException() {
     }

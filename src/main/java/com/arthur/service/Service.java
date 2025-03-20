@@ -5,10 +5,7 @@ import com.arthur.config.ConfigLoader;
 import com.arthur.exception.support.Exception4Support;
 import com.arthur.exception.support.ForbiddenException;
 import com.arthur.exception.support.ImageDownloadException;
-import com.arthur.exception.user.DirectoryException;
-import com.arthur.exception.user.Exception4User;
-import com.arthur.exception.user.ResourceNotFoundException;
-import com.arthur.exception.user.UnauthorizedException;
+import com.arthur.exception.user.*;
 import org.jsoup.HttpStatusException;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -17,11 +14,14 @@ import org.jsoup.select.Elements;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.MalformedURLException;
 import java.net.URL;
-import java.nio.file.Files;
-import java.nio.file.NoSuchFileException;
-import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
+import java.nio.file.*;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 public class Service {
     private final Config config = ConfigLoader.loadConfig();
@@ -31,33 +31,30 @@ public class Service {
     private final String ATTRIBUTE = config.getAttribute();
 
     public void parseImages(String siteUrl, String path){
-        try {
+        try(ExecutorService executor = Executors.newFixedThreadPool(10)) {
+
             Document doc = Jsoup.connect(siteUrl)
                     .userAgent(USER_AGENT)
                     .referrer(REFERRER)
                     .get();
 
             Elements images = doc.select(HTML_TAG);
+            images = filterUniqueElements(images);
 
-            for (Element image : images) {
+            for(Element image : images) {
                 String imageUrl = image.attr(ATTRIBUTE);
+                executor.submit(() -> downloadImage(imageUrl, path));
+            }
+            executor.shutdown();
 
-                String fileName = imageUrl.substring(imageUrl.lastIndexOf("/") + 1);
-                fileName = removeAdditionalParameters(fileName);
-
-                URL url = new URL(imageUrl);
-
-                try (InputStream in = url.openStream()) {
-                    Files.copy(
-                            in,
-                            Paths.get(path, fileName),
-                            StandardCopyOption.REPLACE_EXISTING
-                    );
-                } catch (NoSuchFileException e) {
-                    throw new DirectoryException("Такой директории не существует: " + path);
-                } catch (IOException e) {
-                    throw new Exception4Support("Ошибка: " + e.getMessage());
+            try {
+                if (!executor.awaitTermination(30, TimeUnit.MINUTES)) {
+                    executor.shutdownNow();
                 }
+            } catch (InterruptedException e) {
+                executor.shutdownNow();
+                Thread.currentThread().interrupt();
+                throw new Exception4Support("Ошибка. " + e.getMessage());
             }
         } catch (HttpStatusException e) {
             handleHttpStatusException(e);
@@ -85,5 +82,40 @@ public class Service {
             return fileName.substring(0, fileName.indexOf("?"));
         }
         return fileName;
+    }
+
+    private void downloadImage(String imageUrl, String path) {
+        String fileName = imageUrl.substring(imageUrl.lastIndexOf("/") + 1);
+        fileName = removeAdditionalParameters(fileName);
+        Path target = Paths.get(path, fileName);
+
+        try {
+            URL url = new URL(imageUrl);
+            InputStream in = url.openStream();
+            Files.copy(in, target, StandardCopyOption.REPLACE_EXISTING);
+        } catch (NoSuchFileException e) {
+            throw new DirectoryException("Такой директории не существует: " + path);
+        } catch (AccessDeniedException e) {
+            throw new ForbiddenException("Доступ к запрашиваемому ресурсу запрещен. " + imageUrl);
+        } catch (FileAlreadyExistsException e) {
+            throw new DirectoryException("Целевой путь является директорией: " + target);
+        } catch (MalformedURLException e) {
+            throw new InvalidUrlException("Некорректный url. " + imageUrl);
+        } catch (IOException e) {
+            throw new Exception4Support("Ошибка. " + imageUrl + " " + path);
+        }
+    }
+
+    private Elements filterUniqueElements(Elements elements) {
+        Set<String> uniqueSrc = new HashSet<>();
+        Elements uniqueImages = new Elements();
+
+        for (Element image : elements) {
+            String src = image.attr("src");
+            if (uniqueSrc.add(src)) {
+                uniqueImages.add(image);
+            }
+        }
+        return uniqueImages;
     }
 }

@@ -1,4 +1,4 @@
-package com.arthur;
+package com.arthur.service;
 
 import com.arthur.config.Config;
 import com.arthur.config.ConfigLoader;

@@ -1,10 +1,6 @@
-package com.arthur;
+package com.arthur.controller;
 
-import com.arthur.exception.*;
-import org.jsoup.HttpStatusException;
-
-import java.io.IOException;
-import java.nio.file.NoSuchFileException;
+import com.arthur.service.Service;
 
 public class Main {
 

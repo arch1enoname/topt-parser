@@ -1,14 +1,51 @@
 package com.arthur.controller;
 
+import com.arthur.exception.support.Exception4Support;
+import com.arthur.exception.support.ForbiddenException;
+import com.arthur.exception.support.ImageDownloadException;
+import com.arthur.exception.user.DirectoryException;
+import com.arthur.exception.user.Exception4User;
+import com.arthur.exception.user.ResourceNotFoundException;
+import com.arthur.exception.user.UnauthorizedException;
 import com.arthur.service.Service;
+
+import java.util.Random;
+import java.util.Scanner;
 
 public class Main {
 
     private final static Service service = new Service();
-    private final static String URL = "https://ru.freepik.com/free-photos-vectors/%D0%B0%D0%BD%D0%B8%D0%BC%D0%B5-%D0%BE%D0%B1%D0%BE%D0%B8-1920x1080";
-    private final static String PATH = "C:\\Users\\79053\\Desktop\\image";
+//    "https://ru.freepik.com/free-photos-vectors/%D0%B0%D0%BD%D0%B8%D0%BC%D0%B5-%D0%BE%D0%B1%D0%BE%D0%B8-1920x1080";
+//    "C:\\Users\\79053\\Desktop\\image";
 
     public static void main(String[] args) {
-        service.parseImages(URL, PATH);
+        try {
+            Scanner scanner = new Scanner(System.in);
+
+            String url = scanner.nextLine();
+            String path = scanner.nextLine();
+
+            service.parseImages(url, path);
+        } catch (UnauthorizedException e) {
+            System.out.println("Вы не авторизованны. " + e.getMessage());
+        } catch (ForbiddenException e) {
+            System.out.println("Доступ к запрашиваемому ресурсу запрещен. " + e.getMessage());
+        } catch (ResourceNotFoundException e) {
+            System.out.println("Невозможно найти запрашиваемый ресурс. " + e.getMessage());
+        } catch (DirectoryException e) {
+            System.out.println("Директория не найдена. " + e.getMessage());
+        } catch (Exception4User e) {
+            int id = generateId();
+            System.err.println("Ошибка. id - "+ id + " " + e.getMessage());
+            System.out.println("Обратитесь в тех поддержку, id ошибки - " + id);
+        } catch (Exception4Support e) {
+            int id = generateId();
+            System.err.println("Ошибка. id - " + id + " " + e.getMessage());
+        }
+    }
+
+    public static int generateId() {
+        Random random = new Random();
+        return random.nextInt();
     }
 }
